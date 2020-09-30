@@ -1,25 +1,29 @@
 #include <iostream>
 #include <time.h>
+#include <random>
 #include <vector>
+#include <queue>
 #include <thread>
 #include <mutex>
 #include <Windows.h>
 
 std::mutex mtx;	//mutex
 
-void dataGenerator(std::vector<std::vector<int>>& vec);
-void dataProcesser(std::vector<std::vector<int>>& vec, std::vector<int>& vecOfAverages);
-void dataAggregator(std::vector<int>& vecOfAverages);
+void dataGenerator(std::queue<std::vector<int>>& data);
+void dataProcesser(std::queue<std::vector<int>>& data, std::queue<int>& averages);
+void dataAggregator(std::queue<int>& averages);
 
 int main()
 {
-	std::vector<std::vector<int>> vec;	//TODO: change to queue
-	std::vector<int> averages;	//TODO: change to queue
+	std::queue<std::vector<int>> generatedData;
+	std::queue<int> averages;
 
-	std::thread generator(dataGenerator, std::ref(vec));
-	std::thread processer(dataProcesser, std::ref(vec), std::ref(averages));
+	// create threads
+	std::thread generator(dataGenerator, std::ref(generatedData));
+	std::thread processer(dataProcesser, std::ref(generatedData), std::ref(averages));
 	std::thread aggregator(dataAggregator, std::ref(averages));
 
+	// wait until all threads finish
 	generator.join();
 	processer.join();
 	aggregator.join();
@@ -28,33 +32,45 @@ int main()
 	return 0;
 }
 
-void dataGenerator(std::vector<std::vector<int>>& vec)
+void dataGenerator(std::queue<std::vector<int>>& data)
 {
 	time_t start_time = clock();	// time when function has started
 	time_t temp_time = start_time;	// time of each loop
 
-	double time = 0.0;	// total time that function has run
+	double time_taken = 0.0;	// total time that function has run
 	
-	while (time <= 10.0)
+	srand((unsigned)time(NULL));
+
+	while (time_taken <= 10.0)
 	{
 		temp_time = clock();
-		time = (temp_time - start_time) / double(CLOCKS_PER_SEC);	// check how much time has passed
+		time_taken = (temp_time - start_time) / double(CLOCKS_PER_SEC);	// check how much time has passed
 
-		std::vector<int> vec1 = { 1, 2, 3, 4, 5 };	//TODO: change to random size and random vars
-		vec.push_back(vec1);	//TODO: change to queue; add mutex
+		std::vector<int> generatedVector;
+		int size = rand() % 100 + 1;	// size of the vector between 1 and 100
+
+		for (int i = 0; i < size; i++)
+		{
+			int num = rand() % 100 + 1;	// number between 1 and 100
+			generatedVector.push_back(num);
+		}
+
+		mtx.lock();	// preventing multiple threads accessing the queue at the same time
+		data.push(generatedVector);
+		mtx.unlock();
 
 		Sleep(200);	// wait for 0.2 secodns before adding a new vector 
-		std::cout << "Time: " << time << "\n";
+		std::cout << "Time: " << time_taken << "\n";
 	}
 }
 
-void dataProcesser(std::vector<std::vector<int>>& vec, std::vector<int>& vecOfAverages)
+void dataProcesser(std::queue<std::vector<int>>& data, std::queue<int>& averages)
 {
 	//calculates the average and sum for each vectors. 
 	//passes to thee aggregator
 }
 
-void dataAggregator(std::vector<int>& vecOfAverages)
+void dataAggregator(std::queue<int>& averages)
 {
 	//calculates average of averages
 	//prints out the result 
