@@ -115,7 +115,7 @@ void dataAggregator(SafeQueue<double>& averages)
 		sum += temp;
 	}
 
-	double answer = sum / count;
+	double answer = sum / count;	// calculating the average of averages
 
 	std::cout << "The average of averages is: " << answer << "!\n";
 }

@@ -29,7 +29,7 @@ public:
 	{
 		std::unique_lock<std::mutex> lock(m_mtx);
 		m_cv.wait_for(lock, std::chrono::seconds(1));	// wait for other thread to finish
-		if (m_queue.empty())	// if it hasn't finished in a second and it is empty then return false
+		if (m_queue.empty())	// if it hasn't finished in a second and the queue is empty then return false
 		{
 			return false;
 		}
