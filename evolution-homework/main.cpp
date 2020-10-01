@@ -2,21 +2,19 @@
 #include <time.h>
 #include <random>
 #include <vector>
-#include <queue>
 #include <thread>
-#include <mutex>
 #include <Windows.h>
 
-std::mutex mtx;	//mutex
+#include "SafeQueue.h"
 
-void dataGenerator(std::queue<std::vector<int>>& data);
-void dataProcesser(std::queue<std::vector<int>>& data, std::queue<int>& averages);
-void dataAggregator(std::queue<int>& averages);
+void dataGenerator(SafeQueue<std::vector<int>>& data);
+void dataProcesser(SafeQueue<std::vector<int>>& data, SafeQueue<double>& averages);
+void dataAggregator(SafeQueue<double>& averages);
 
 int main()
 {
-	std::queue<std::vector<int>> generatedData;
-	std::queue<int> averages;
+	SafeQueue<std::vector<int>> generatedData;
+	SafeQueue<double> averages;
 
 	// create threads
 	std::thread generator(dataGenerator, std::ref(generatedData));
@@ -32,16 +30,16 @@ int main()
 	return 0;
 }
 
-void dataGenerator(std::queue<std::vector<int>>& data)
+void dataGenerator(SafeQueue<std::vector<int>>& data)
 {
 	time_t start_time = clock();	// time when function has started
 	time_t temp_time = start_time;	// time of each loop
 
 	double time_taken = 0.0;	// total time that function has run
-	
-	srand((unsigned)time(NULL));
 
-	while (time_taken <= 10.0)
+	srand((unsigned)time(NULL));	// initialise a seed for rng
+
+	while (time_taken <= 10.0)	//  runs for 10 seconds
 	{
 		temp_time = clock();
 		time_taken = (temp_time - start_time) / double(CLOCKS_PER_SEC);	// check how much time has passed
@@ -52,26 +50,72 @@ void dataGenerator(std::queue<std::vector<int>>& data)
 		for (int i = 0; i < size; i++)
 		{
 			int num = rand() % 100 + 1;	// number between 1 and 100
-			generatedVector.push_back(num);
+			generatedVector.push_back(num);	// pushing the number into the vector
 		}
 
-		mtx.lock();	// preventing multiple threads accessing the queue at the same time
-		data.push(generatedVector);
-		mtx.unlock();
+		data.push(generatedVector);	// pushing the vector into the queue of vectors
 
-		Sleep(200);	// wait for 0.2 secodns before adding a new vector 
-		std::cout << "Time: " << time_taken << "\n";
+		std::this_thread::sleep_for(std::chrono::milliseconds(200));	// wait for 0.2 secodns before adding a new vector 
 	}
 }
 
-void dataProcesser(std::queue<std::vector<int>>& data, std::queue<int>& averages)
+void dataProcesser(SafeQueue<std::vector<int>>& data, SafeQueue<double>& averages)
 {
-	//calculates the average and sum for each vectors. 
-	//passes to thee aggregator
+	std::vector<int> temp;
+	double average = 0;
+	int sum = 0;
+
+	bool success = true;
+
+	while (true)
+	{
+		success = data.pop(temp);	// pop the first value and assign it to temp
+
+		if (!success)	// if there is no value to pop anymore then quit the loop
+		{
+			break;
+		}
+
+		// calculating the sum of the ints in the vector
+		for (int i = 0; i < temp.size(); i++)
+		{
+			sum += temp.at(i);
+		}
+
+		// calculating the average of the ints in the vector
+		average = (double)sum / temp.size();
+
+		averages.push(average);	// push the average to the queue of averages
+
+		// reset sum and average
+		sum = 0;
+		average = 0;
+	}
 }
 
-void dataAggregator(std::queue<int>& averages)
+void dataAggregator(SafeQueue<double>& averages)
 {
-	//calculates average of averages
-	//prints out the result 
+	double temp = 0;
+	double sum = 0;
+	int count = 0;
+
+	bool success = true;
+
+	while (true)
+	{
+		success = averages.pop(temp);
+		std::this_thread::sleep_for(std::chrono::milliseconds(20));	// works best with a slight delay
+
+		if (!success)	// if there is no value to pop anymore then quit the loop
+		{
+			break;
+		}
+
+		count++;
+		sum += temp;
+	}
+
+	double answer = sum / count;
+
+	std::cout << "The average of averages is: " << answer << "!\n";
 }
